@@ -14,7 +14,6 @@ const rateLimiter = rateLimit({
 })
 
 
-
 app.use(rateLimiter)
 app.use(express.json())
 app.use(xssClean())
@@ -22,20 +21,16 @@ app.use(cors())
 app.use(morgan("dev"))
 
 
+const userRouter = require("./routes/user-router")
+
+app.use("/api/v1/auth", userRouter)
 
 
 
 
 
 
-
-
-
-
-
-
-
-app.get("/test", (req, res, next)=>{
+app.get("/test", (req, res, next) => {
     res.send("Hello text")
 })
 
