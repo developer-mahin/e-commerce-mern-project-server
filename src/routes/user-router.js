@@ -6,11 +6,19 @@ const userController = require("../controllers/user-controller")
 
 router.route("/sign-up")
     .post(userController.createUser)
-
 router.route("/getAllUsers")
     .get(userController.getAllUser)
+router.route("/verify")
+    .post(userController.verifyAndActivateUser)
 
-router.route("/getUserById/:id")
+
+router.route("/user/:id")
     .get(userController.getUserById)
+    .delete(userController.deleteUser)
+
+
+
+
+
 
 module.exports = router;

@@ -1,21 +1,94 @@
 const mongoose = require("mongoose");
+const jwt = require("jsonwebtoken")
 const User = require("../models/user");
-const createError = require("http-errors")
+const createError = require("http-errors");
+const { findUserById } = require("../utils/findUserById");
+const { createJsonWebToken } = require("../utils/jsonWebToken");
+const { sendEmailWithNodeMailer } = require("../utils/email");
+
 
 exports.createUser = async (req, res, next) => {
     try {
-        const data = req.body;
-        const result = await User.create(data)
-        res.status(201).json({
-            status: "success",
-            message: "successfully user created",
-            data: result
+
+        const { firstName, lastName, email, password, confirmPassword, address, phone } = req.body
+
+        const isExistUser = await User.exists({ email: email })
+        if (isExistUser) {
+            throw createError(409, "User already exist please try another email address to signup or please login ")
+        }
+
+        // generate token
+        const token = createJsonWebToken({ firstName, lastName, email, password, confirmPassword, address, phone }, process.env.JWT_TOKEN, "10m")
+
+        const name = firstName + " " + lastName
+
+        // prepare email
+        const emailData = {
+            email: email,
+            subject: "Account Activation Email",
+            html: `
+            
+            <h2>Hello ${name} !</h2>
+            <p>
+            Please activate your account to click here 
+                <a 
+                style="padding:10px 20px; color:green; background:cyan; border-radius:5px; margin-left:20px;"
+                href="${process.env.CLIENT_URL}user/activate/${token}"
+                target="_blank"
+                >
+                Click here to activate
+                </a>
+            </p>
+            
+            `
+        }
+
+        // send mail
+        try {
+            await sendEmailWithNodeMailer(emailData)
+        } catch (error) {
+            next(createError(500, "Failed to sent verification email"))
+            return;
+        }
+
+        res.status(200).json({
+            status: true,
+            message: "Please go to your email for completing registration process",
+            data: token
         })
 
     } catch (error) {
         next(error)
     }
 }
+
+exports.verifyAndActivateUser = async (req, res, next) => {
+    try {
+
+        const { token } = req.body
+        if (!token) {
+            throw createError(401, "Unauthorized! token not found")
+        }
+        const decoded = jwt.verify(token, process.env.JWT_TOKEN)
+        if (!decoded) {
+            throw createError(403, "Forbidden! user data doesn't matched")
+        }
+        const user = await User.create(decoded)
+
+        res.status(201).json({
+            status: true,
+            message: "User created successfully",
+            data: {
+                user
+            }
+        })
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+
 
 
 exports.getAllUser = async (req, res, next) => {
@@ -87,6 +160,31 @@ exports.getUserById = async (req, res, next) => {
             next(createError(400, "Invalid user Id"))
             return;
         }
+        next(error)
+    }
+}
+
+
+exports.deleteUser = async (req, res, next) => {
+    try {
+
+        const { id } = req.params
+
+        const user = await findUserById(id)
+
+        const result = await User.deleteOne({ _id: id })
+        if (result.deletedCount > 0) {
+            return res.status(200).json({
+                status: "success",
+                message: "successfully delete the user"
+            })
+        }
+        else {
+            return next(createError(400, "something went wrong"))
+        }
+
+
+    } catch (error) {
         next(error)
     }
 }
