@@ -10,23 +10,19 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-
-exports.sendEmailWithNodeMailer = async (mailData) => {
+exports.sendEmailWithNodeMailer = async (emailData) => {
     try {
         const mailOption = {
             from: process.env.SMPT_USERNAME,
-            to: mailData.email,
-            subject: mailData.subject,
-            html: mailData.html,
+            to: emailData.email,
+            subject: emailData.subject,
+            html: emailData.html,
         }
 
-        const info = await transporter.sendMail(mailOption)
-        console.log("Message sent: %s", info.response)
+        const info = await transporter.sendMail(mailOption);
+        console.log("message %s", info.response)
 
     } catch (error) {
-
-        console.error("something went wrong!", error)
         throw error
-
     }
 }

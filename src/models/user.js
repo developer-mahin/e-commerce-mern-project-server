@@ -37,7 +37,7 @@ const userSchema = mongoose.Schema({
             minLowerCase: 2,
             minUpperCase: 1,
             minSymbol: 1
-        })
+        }),
     },
     confirmPassword: {
         type: String,
@@ -52,7 +52,6 @@ const userSchema = mongoose.Schema({
     },
     image: {
         type: String,
-        validator: [validator.isisURL, "please provide valid url"]
     },
     address: String,
     phone: {

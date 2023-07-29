@@ -5,86 +5,90 @@ const createError = require("http-errors");
 const { findUserById } = require("../utils/findUserById");
 const { createJsonWebToken } = require("../utils/jsonWebToken");
 const { sendEmailWithNodeMailer } = require("../utils/email");
+const bcrypt = require("bcryptjs")
 
 
 exports.createUser = async (req, res, next) => {
     try {
-
-        const { firstName, lastName, email, password, confirmPassword, address, phone } = req.body
-
-        const isExistUser = await User.exists({ email: email })
-        if (isExistUser) {
-            throw createError(409, "User already exist please try another email address to signup or please login ")
+        const { firstName, lastName, email, password, confirmPassword, phone, address, role } = req.body;
+        const isUserExist = await User.exists({ email })
+        if (isUserExist) {
+            throw new Error("User Already Exist Please Try Another Email Address")
         }
 
-        // generate token
-        const token = createJsonWebToken({ firstName, lastName, email, password, confirmPassword, address, phone }, process.env.JWT_TOKEN, "10m")
+        const hashedPassword = bcrypt.hashSync(password, bcrypt.genSaltSync(10))
 
+        const query = {
+            firstName,
+            lastName,
+            email,
+            password: hashedPassword,
+            role: "user",
+            status: "active"
+        }
+
+        const token = createJsonWebToken(query, process.env.JWT_TOKEN, "10m")
         const name = firstName + " " + lastName
 
-        // prepare email
-        const emailData = {
-            email: email,
-            subject: "Account Activation Email",
-            html: `
-            
-            <h2>Hello ${name} !</h2>
-            <p>
-            Please activate your account to click here 
-                <a 
-                style="padding:10px 20px; color:green; background:cyan; border-radius:5px; margin-left:20px;"
+        try {
+            const emailData = {
+                email: email,
+                subject: "Account Activation Email",
+                html: `
+                <h2>Hello ${name} !</h2>
+                <p>Please activate your account to click here </p>
+                <a
+                style="padding:10px 20px; color:green; background:cyan; border-radius:5px;text-decoration:none"
                 href="${process.env.CLIENT_URL}user/activate/${token}"
                 target="_blank"
                 >
                 Click here to activate
                 </a>
-            </p>
-            
-            `
-        }
-
-        // send mail
-        try {
+                `
+            }
             await sendEmailWithNodeMailer(emailData)
+
         } catch (error) {
-            next(createError(500, "Failed to sent verification email"))
-            return;
+            next(createError(500, "failed to send verification email "))
+            return
         }
 
         res.status(200).json({
-            status: true,
-            message: "Please go to your email for completing registration process",
-            data: token
+            success: true,
+            message: "Please go to your email and compete the verification process",
+            token
         })
 
     } catch (error) {
         next(error)
     }
+
 }
 
 exports.verifyAndActivateUser = async (req, res, next) => {
     try {
 
-        const { token } = req.body
+        const { token } = req.body;
         if (!token) {
-            throw createError(401, "Unauthorized! token not found")
+            throw createError(401, "unauthorized access, token not found! please try again")
         }
+
         const decoded = jwt.verify(token, process.env.JWT_TOKEN)
         if (!decoded) {
-            throw createError(403, "Forbidden! user data doesn't matched")
+            throw createError(403, "Forbidden! user data doesn't matched ")
         }
-        const user = await User.create(decoded)
 
+        const user = await User.create(decoded)
         res.status(201).json({
             status: true,
             message: "User created successfully",
-            data: {
-                user
-            }
+            data: user
         })
 
     } catch (error) {
+
         next(error)
+
     }
 }
 

@@ -1,11 +1,10 @@
 const express = require("express");
 const router = express.Router()
-const userController = require("../controllers/user-controller")
-
-
+const userController = require("../controllers/user-controller");
+const upload = require("../middleware/fileUpload");
 
 router.route("/sign-up")
-    .post(userController.createUser)
+    .post(upload.single("image"), userController.createUser)
 router.route("/getAllUsers")
     .get(userController.getAllUser)
 router.route("/verify")
