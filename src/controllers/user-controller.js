@@ -23,6 +23,7 @@ exports.createUser = async (req, res, next) => {
             lastName,
             email,
             password: hashedPassword,
+            confirmPassword: hashedPassword,
             role: "user",
             status: "active"
         }
@@ -68,27 +69,43 @@ exports.createUser = async (req, res, next) => {
 exports.verifyAndActivateUser = async (req, res, next) => {
     try {
 
-        const { token } = req.body;
+        const token = req.body.token;
         if (!token) {
-            throw createError(401, "unauthorized access, token not found! please try again")
+            throw createError(404, "Not found")
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_TOKEN)
-        if (!decoded) {
-            throw createError(403, "Forbidden! user data doesn't matched ")
-        }
+        try {
 
-        const user = await User.create(decoded)
-        res.status(201).json({
-            status: true,
-            message: "User created successfully",
-            data: user
-        })
+            const decoded = jwt.verify(token, process.env.JWT_TOKEN)
+            if (!decoded) {
+                throw createError(401, "unauthorized access")
+            }
+
+            const isUserExist = await User.exists({ email: decoded.email })
+            if (isUserExist) {
+                throw createError(400, "User already with this email address please try another email address")
+            }
+            const user = await User.create(decoded)
+            res.status(201).json({
+                success: true,
+                message: "successfully created the user",
+                user
+            })
+
+        } catch (error) {
+            if (error.name === "TokenExpiredError") {
+                throw createError(401, "Token expired")
+            }
+            if (error.name === "JsonWebTokenError") {
+                throw createError(401, "Invalid token")
+            }
+            else {
+                throw error
+            }
+        }
 
     } catch (error) {
-
         next(error)
-
     }
 }
 
